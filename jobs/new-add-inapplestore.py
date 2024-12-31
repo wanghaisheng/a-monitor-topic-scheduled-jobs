@@ -48,20 +48,17 @@ async def get_urls_from_archive(domain, start, end):
     domainname = domain.replace("https://", "")
     domainname=domainname.replace('/','-')
     
-    csv_filepath = f'{RESULT_FOLDER}/{domainname}.csv'
+    csv_filepath = f'{RESULT_FOLDER}/top-app-{domainname}.csv'
     csv_file=Recorder(csv_filepath)
 
     fieldnames = ['timestamp', 'url']
     if not os.path.exists(csv_filepath):
         csv_file.add_data(fieldnames)
 
-    query_url = f"http://web.archive.org/cdx/search/cdx?url={subs_wildcard}{domain}/&fl=timestamp,original"
-    filter = f"&statuscode=200&from={start}&to={end}" if end else f"&statuscode=200&from={start}"
-    query_url += "&collapse=urlkey" + filter
-    # query_url=query_url+'&matchType=prefix'
-    query_url=query_url+f'&statuscode=200&from={current-1}'
-
-  
+    query_url = f"http://web.archive.org/cdx/search/cdx?url={domain}/&fl=timestamp,original"
+    # filter = f"&statuscode=200&from={start}&to={end}" if end else f"&statuscode=200&from={start}"
+    query_url += "&collapse=urlkey"
+    query_url=query_url+'&matchType=prefix'
 
     headers = {
         'Referer': 'https://web.archive.org/',
@@ -120,27 +117,37 @@ def extract_urls(domain):
     domainname=domainname.replace('/','-')
 
 
-    csv_file = f'{RESULT_FOLDER}/{domainname}.csv'
+    csv_file = f'{RESULT_FOLDER}/top-app-{domainname}.csv'
     if not os.path.exists(csv_file):
-        print('{domain} category urls file not prepared yet')
+        print(f'{domain} category urls file not prepared yet')
         return
     df=pd.read_csv(csv_file)
     urls=df['url']
-    urls=[x if x and 'top-' in x  else None for x in urls]
+    if len(urls)==0:
+        return 
+    urls=[x if x and '?chart=top-' in x  else None for x in urls]
     urls=list(set(urls))
-    print(urls)
-    for t in ['paid','free']:
-        urls=[x if x and '-'+t in x else None for x in urls]
+    if len(urls)==0:
+        return 
+    # print(urls)
+    freedata=[x if x and 'chart=top-free' in x else None for x in urls]
+    paiddata=[x if x and 'chart=top-paid' in x else None for x in urls]
+
     # freeurls=[x if x and  '-'+t in x else None for x in urls]
-        out_filepath=f'{RESULT_FOLDER}/ipad-top-{t}.csv'
 
-        if '/iphone/' in domain:
-            out_filepath=f'{RESULT_FOLDER}/iphone-top-{t}.csv'
+    free_filepath=f'{RESULT_FOLDER}/top-app-free-{domainname}.csv'
+    paid_filepath=f'{RESULT_FOLDER}/top-app-paid-{domainname}.csv'
+
   
-        out_file=Recorder(out_filepath)
+    free_out_file=Recorder(free_filepath)
+    paid_out_file=Recorder(paid_filepath)
+    for url in freedata:
 
-        out_file.add_data(urls)
-        out_file.record()
+        free_out_file.add_data(url)
+    for url in paiddata:
+        paid_out_file.add_data(url)
+    free_out_file.record()
+    paid_out_file.record()
 
 async def main():
     """Main entry point to handle asynchronous execution."""
